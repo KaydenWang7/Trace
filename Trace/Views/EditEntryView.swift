@@ -17,27 +17,23 @@ struct EditEntryView: View {
     @State private var hasChanges = false
     @State private var draftTimestamp: Date
     @State private var draftTitle: String = ""
+    @State private var draftRating: Double? = nil
     
     init(entry: Entry) {
         self.entry = entry
         _draftTimestamp = State(initialValue: entry.timestamp)
         _draftTitle = State(initialValue: entry.title)
+        _draftRating = State(initialValue: entry.rating)
     }
     
     var body: some View {
         NavigationStack {
-            List {
-                DatePicker("Timestamp", selection: $draftTimestamp, displayedComponents: [.date, .hourAndMinute])
-                    .datePickerStyle(.compact)
-                    .controlSize(.regular)
-                    .onChange(of: draftTimestamp) {
-                        hasChanges = true
-                    }
-                TextField("Title", text: $draftTitle)
-                    .onChange(of: draftTitle) {
-                        hasChanges = true
-                    }
-            }
+            EntryForm(
+                timestamp: $draftTimestamp,
+                title: $draftTitle,
+                rating: $draftRating,
+                onChange: { hasChanges = true }
+            )
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", systemImage: "xmark", role: .cancel) {
@@ -78,6 +74,7 @@ struct EditEntryView: View {
                 Button("Save", role: .confirm) {
                     entry.timestamp = draftTimestamp
                     entry.title = draftTitle
+                    entry.rating = draftRating
                     dismiss()
                 }
                 Button("Cancel", role: .cancel) { }
@@ -89,6 +86,6 @@ struct EditEntryView: View {
 }
 
 #Preview {
-    EditEntryView(entry: Entry(timestamp: Date(), title: ""))
+    EditEntryView(entry: Entry(timestamp: Date(), title: "", rating: 5))
         .modelContainer(for: Entry.self, inMemory: true)
 }

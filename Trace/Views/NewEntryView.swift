@@ -15,15 +15,16 @@ struct NewEntryView: View {
 
     @State private var timestamp: Date = Date()
     @State private var title: String = ""
+    @State private var rating: Double? = nil
 
     var body: some View {
         NavigationStack {
-            List {
-                DatePicker("Timestamp", selection: $timestamp, displayedComponents: [.date, .hourAndMinute])
-                    .datePickerStyle(.compact)
-                    .controlSize(.regular)
-                TextField("Title", text: $title)
-            }
+            EntryForm(
+                timestamp: $timestamp,
+                title: $title,
+                rating: $rating,
+                onChange: {}
+            )
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(role: .cancel) {
@@ -34,7 +35,7 @@ struct NewEntryView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(role: .confirm) {
-                        let created = Entry(timestamp: timestamp, title: title)
+                        let created = Entry(timestamp: timestamp, title: title, rating: rating)
                         modelContext.insert(created)
                         dismiss()
                     } label: {
@@ -44,9 +45,4 @@ struct NewEntryView: View {
             }
         }
     }
-}
-
-#Preview {
-    NewEntryView()
-        .modelContainer(for: Entry.self, inMemory: true)
 }

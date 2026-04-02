@@ -12,9 +12,11 @@ import SwiftData
 final class Entry {
     var timestamp: Date
     var title: String
+    var rating: Double?
     
-    init(timestamp: Date, title: String) {
+    init(timestamp: Date, title: String, rating: Double? = nil) {
         self.timestamp = timestamp
         self.title = title
+        self.rating = rating
     }
 }

@@ -14,15 +14,32 @@ struct EntryView: View {
     @State private var showingSheet = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(entry.title)
-                .font(.title3)
-                .fontWeight(.semibold)
-                .frame(maxWidth: .infinity, alignment: .center)
-            Text(entry.timestamp.formatted(date: .abbreviated, time: .shortened))
-                .frame(maxWidth:.infinity, alignment: .center)
+        List() {
+            VStack(alignment: .leading) {
+                Text("Timestamp")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(entry.timestamp.formatted(date: .abbreviated, time: .shortened))
+                    .font(.body)
+            }
+            
+            if let rating = entry.rating {
+                VStack(alignment: .leading) {
+                    Text("Rating")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(String(rating.formatted()))
+                }
+            } else {
+                VStack(alignment: .leading) {
+                    Text("Rating")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("No rating")
+                }
+            }
         }
-        .navigationTitle(entry.timestamp.formatted(date: .abbreviated, time: .shortened))
+        .navigationTitle(entry.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -40,6 +57,6 @@ struct EntryView: View {
 }
 
 #Preview {
-    EntryView(entry: Entry(timestamp: Date(), title: ""))
+    EntryView(entry: Entry(timestamp: Date(), title: "", rating: 5))
         .modelContainer(for: Entry.self, inMemory: true)
 }
