@@ -12,7 +12,7 @@ struct EntryForm: View {
         f.minimum = 0
         f.maximum = 10
         f.minimumFractionDigits = 0
-        f.maximumFractionDigits = 2
+        f.maximumFractionDigits = 1
         f.alwaysShowsDecimalSeparator = false
         return f
     }()
