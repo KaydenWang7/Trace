@@ -4,6 +4,7 @@ struct EntryForm: View {
     @Binding var timestamp: Date
     @Binding var title: String
     @Binding var rating: Double?
+    @Binding var desc: String
     var onChange: () -> Void = {}
 
     private static let ratingFormatter: NumberFormatter = {
@@ -41,27 +42,34 @@ struct EntryForm: View {
     }
 
     var body: some View {
-        List {
-            DatePicker("Timestamp", selection: $timestamp, displayedComponents: [.date, .hourAndMinute])
-                .datePickerStyle(.compact)
-                .controlSize(.regular)
-                .onChange(of: timestamp) { onChange() }
-
-            HStack {
-                Text("Title")
-                Spacer()
+        Form {
+            Section("Details") {
                 TextField("Title", text: $title)
+                    .textInputAutocapitalization(.sentences)
                     .onChange(of: title) { onChange() }
+
+                DatePicker("Timestamp", selection: $timestamp, displayedComponents: [.date, .hourAndMinute])
+                    .datePickerStyle(.compact)
+                    .onChange(of: timestamp) { onChange() }
             }
 
-            HStack {
-                Text("Rating")
-                Spacer()
-                TextField("Rating", text: ratingTextBinding)
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.trailing)
-                    .foregroundStyle(.secondary)
-                    .frame(minWidth: 60)
+            Section("Rating") {
+                HStack {
+                    Text("Score")
+                    Spacer()
+                    TextField("0–10", text: ratingTextBinding)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .foregroundStyle(.secondary)
+                        .frame(minWidth: 60)
+                }
+            }
+
+            Section("Description") {
+                TextEditor(text: $desc)
+                    .frame(minHeight: 140)
+                    .onChange(of: desc) { onChange() }
+                    .textInputAutocapitalization(.sentences)
             }
         }
     }

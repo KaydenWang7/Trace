@@ -16,6 +16,7 @@ struct NewEntryView: View {
     @State private var timestamp: Date = Date()
     @State private var title: String = ""
     @State private var rating: Double? = nil
+    @State private var desc: String = ""
 
     var body: some View {
         NavigationStack {
@@ -23,6 +24,7 @@ struct NewEntryView: View {
                 timestamp: $timestamp,
                 title: $title,
                 rating: $rating,
+                desc: $desc,
                 onChange: {}
             )
             .toolbar {
@@ -35,7 +37,7 @@ struct NewEntryView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(role: .confirm) {
-                        let created = Entry(timestamp: timestamp, title: title, rating: rating)
+                        let created = Entry(timestamp: timestamp, title: title, rating: rating, desc: desc.isEmpty ? nil : desc)
                         modelContext.insert(created)
                         dismiss()
                     } label: {
@@ -46,3 +48,4 @@ struct NewEntryView: View {
         }
     }
 }
+

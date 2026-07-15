@@ -18,12 +18,14 @@ struct EditEntryView: View {
     @State private var draftTimestamp: Date
     @State private var draftTitle: String = ""
     @State private var draftRating: Double? = nil
+    @State private var draftDesc: String = ""
     
     init(entry: Entry) {
         self.entry = entry
         _draftTimestamp = State(initialValue: entry.timestamp)
         _draftTitle = State(initialValue: entry.title)
         _draftRating = State(initialValue: entry.rating)
+        _draftDesc = State(initialValue: entry.desc ?? "")
     }
     
     var body: some View {
@@ -32,6 +34,7 @@ struct EditEntryView: View {
                 timestamp: $draftTimestamp,
                 title: $draftTitle,
                 rating: $draftRating,
+                desc: $draftDesc,
                 onChange: { hasChanges = true }
             )
             .toolbar {
@@ -75,6 +78,7 @@ struct EditEntryView: View {
                     entry.timestamp = draftTimestamp
                     entry.title = draftTitle
                     entry.rating = draftRating
+                    entry.desc = draftDesc.isEmpty ? nil : draftDesc
                     dismiss()
                 }
                 Button("Cancel", role: .cancel) { }
@@ -89,3 +93,4 @@ struct EditEntryView: View {
     EditEntryView(entry: Entry(timestamp: Date(), title: "", rating: 5))
         .modelContainer(for: Entry.self, inMemory: true)
 }
+

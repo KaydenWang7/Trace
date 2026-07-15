@@ -9,62 +9,61 @@ import SwiftUI
 import SwiftData
 
 struct LogView: View {
+    let log: Log
     @Environment(\.modelContext) private var modelContext
     @Query private var entries: [Entry]
     @State private var showingNewEntrySheet = false
-    @State private var showingSettingsSheet = false
+    @State private var showingRenameSheet = false
+    @State private var editedTitle: String = ""
     @AppStorage("showGradient") private var showGradient: Bool = true
+
+    init(log: Log) {
+        self.log = log
+        let id = log.persistentModelID
+        _entries = Query(filter: #Predicate<Entry> { $0.log?.persistentModelID == id }, sort: \Entry.timestamp, order: .reverse)
+    }
 
     var body: some View {
         List {
             ForEach(entries) { entry in
                 NavigationLink(destination: EntryView(entry: entry)) {
-                    HStack {
+                    HStack(alignment: .center, spacing: 12) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(entry.title)
                             Text(entry.timestamp, format: Date.FormatStyle(date: .numeric, time: .shortened))
                                 .foregroundStyle(.secondary)
+                            if let desc = entry.desc, !desc.isEmpty {
+                                Text(desc)
+                                    .lineLimit(1)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                         Spacer()
                         if let rating = entry.rating {
-                            ZStack {
-                                if showGradient {
-                                    Circle()
-                                        .fill(
-                                            LinearGradient(
-                                                colors: rowGradientColors(for: rating),
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            )
-                                        )
-                                } else {
-                                    Circle().fill(Color.clear)
-                                        .overlay(
-                                            Circle().stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-                                        )
-                                }
-                                Text(rating.formatted())
-                                    .font(.headline)
-                                    .monospacedDigit()
-                                    .foregroundStyle(.primary)
-                            }
-                            .frame(width: 36, height: 36, alignment: .center)
-                            .contentShape(Circle())
-                        } else {
-                            // Reserve space so rows align even when there's no rating
-                            Circle()
-                                .fill(Color.clear)
-                                .frame(width: 36, height: 36)
+                            Text(rating.formatted())
+                                .font(.headline)
+                                .monospacedDigit()
+                                .foregroundStyle(.primary)
+                                .multilineTextAlignment(.trailing)
                         }
                     }
+                    .padding(.vertical, 8)
+                }
+                .if(showGradient) { view in
+                    view.listRowBackground(
+                        LinearGradient(colors: rowGradientColors(for: entry.rating), startPoint: .topLeading, endPoint: .bottomTrailing)
+                    )
                 }
             }
             .onDelete(perform: deleteEntries)
         }
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { showingSettingsSheet = true }) {
-                    Label("Settings", systemImage: "gear")
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(action: {
+                    editedTitle = log.title
+                    showingRenameSheet = true
+                }) {
+                    Label("Rename Log", systemImage: "pencil")
                 }
             }
             ToolbarItem {
@@ -73,12 +72,37 @@ struct LogView: View {
                 }
             }
         }
-        .navigationTitle("Logs")
+        .navigationTitle(log.title)
         .sheet(isPresented: $showingNewEntrySheet) {
-            NewEntryView()
+            NewEntryViewForLog { title, rating, desc in
+                addEntry(title: title, rating: rating, desc: desc)
+            }
         }
-        .sheet(isPresented: $showingSettingsSheet) {
-            SettingsView()
+        .sheet(isPresented: $showingRenameSheet) {
+            NavigationStack {
+                Form {
+                    Section("Title") {
+                        TextField("Log title", text: $editedTitle)
+                            .textInputAutocapitalization(.words)
+                            .disableAutocorrection(false)
+                    }
+                }
+                .navigationTitle("Rename Log")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { showingRenameSheet = false }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save") {
+                            let newTitle = editedTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !newTitle.isEmpty else { return }
+                            log.title = newTitle
+                            try? modelContext.save()
+                            showingRenameSheet = false
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -90,10 +114,16 @@ struct LogView: View {
         }
     }
     
+    private func addEntry(title: String, rating: Double?, desc: String?) {
+        let entry = Entry(timestamp: Date(), title: title, rating: rating, desc: desc, log: log)
+        modelContext.insert(entry)
+        try? modelContext.save()
+    }
+    
     private func rowGradientColors(for rating: Double?) -> [Color] {
         guard let rating = rating else {
             // No rating: subtle gray gradient
-            return [Color.gray.opacity(0.15), Color.gray.opacity(0.10)]
+            return [Color(uiColor: .secondarySystemGroupedBackground)]
         }
         // Clamp rating between 0 and 10
         let clamped = max(0, min(10, rating))
@@ -110,8 +140,8 @@ struct LogView: View {
             let local = (t - 0.5) / 0.5 // 0..1
             hue = 0.16 + (0.33 - 0.16) * local
         }
-        let base = Color(hue: hue, saturation: 0.65, brightness: 0.95)
-        let lighter = Color(hue: hue, saturation: 0.45, brightness: 1.0)
+        let base = Color(hue: hue, saturation: 0.80, brightness: 1.0)
+        let lighter = Color(hue: hue, saturation: 0.60, brightness: 1.0)
         return [base.opacity(0.30), lighter.opacity(0.22)]
     }
 }
@@ -127,7 +157,55 @@ extension View {
     }
 }
 
-#Preview {
-    ContentView()
-        .modelContainer(for: Entry.self, inMemory: true)
+struct NewEntryViewForLog: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var timestamp: Date = Date()
+    @State private var title: String = ""
+    @State private var ratingText: String = ""
+    @State private var desc: String = ""
+    var onSave: (String, Double?, String?) -> Void
+
+    var body: some View {
+        NavigationStack {
+            EntryForm(
+                timestamp: $timestamp,
+                title: $title,
+                rating: Binding<Double?>(
+                    get: { Double(ratingText) },
+                    set: { newValue in
+                        if let v = newValue {
+                            ratingText = String(v)
+                        } else {
+                            ratingText = ""
+                        }
+                    }
+                ),
+                desc: $desc,
+                onChange: { }
+            )
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        let rating = Double(ratingText)
+                        let descValue: String? = desc.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : desc
+                        guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+                        onSave(title, rating, descValue)
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
 }
+
+#Preview {
+    let container = try! ModelContainer(for: Log.self, Entry.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+    let previewLog = Log(title: "Sample Log")
+    container.mainContext.insert(previewLog)
+    return LogView(log: previewLog)
+        .modelContainer(container)
+}
+

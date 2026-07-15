@@ -38,6 +38,9 @@ struct EntryView: View {
                     Text("No rating")
                 }
             }
+            Section("Description") {
+                Text(entry.desc ?? "")
+            }
         }
         .navigationTitle(entry.title)
         .navigationBarTitleDisplayMode(.inline)
