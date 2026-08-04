@@ -19,6 +19,7 @@ struct EditEntryView: View {
     @State private var draftTitle: String = ""
     @State private var draftRating: Double? = nil
     @State private var draftDesc: String = ""
+    @State private var draftPhotoData: Data? = nil
     
     init(entry: Entry) {
         self.entry = entry
@@ -26,6 +27,7 @@ struct EditEntryView: View {
         _draftTitle = State(initialValue: entry.title)
         _draftRating = State(initialValue: entry.rating)
         _draftDesc = State(initialValue: entry.desc ?? "")
+        _draftPhotoData = State(initialValue: entry.photoData)
     }
     
     var body: some View {
@@ -35,6 +37,7 @@ struct EditEntryView: View {
                 title: $draftTitle,
                 rating: $draftRating,
                 desc: $draftDesc,
+                photoData: $draftPhotoData,
                 onChange: { hasChanges = true }
             )
             .toolbar {
@@ -79,6 +82,7 @@ struct EditEntryView: View {
                     entry.title = draftTitle
                     entry.rating = draftRating
                     entry.desc = draftDesc.isEmpty ? nil : draftDesc
+                    entry.photoData = draftPhotoData
                     dismiss()
                 }
                 Button("Cancel", role: .cancel) { }

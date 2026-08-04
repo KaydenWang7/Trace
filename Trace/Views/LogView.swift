@@ -163,6 +163,7 @@ struct NewEntryViewForLog: View {
     @State private var title: String = ""
     @State private var ratingText: String = ""
     @State private var desc: String = ""
+    @State private var photoData: Data? = nil
     var onSave: (String, Double?, String?) -> Void
 
     var body: some View {
@@ -181,6 +182,7 @@ struct NewEntryViewForLog: View {
                     }
                 ),
                 desc: $desc,
+                photoData: $photoData,
                 onChange: { }
             )
             .toolbar {
@@ -190,9 +192,11 @@ struct NewEntryViewForLog: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         let rating = Double(ratingText)
-                        let descValue: String? = desc.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : desc
-                        guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-                        onSave(title, rating, descValue)
+                        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let finalTitle = trimmedTitle.isEmpty ? "" : trimmedTitle
+                        let trimmedDesc = desc.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let descValue: String? = trimmedDesc.isEmpty ? nil : trimmedDesc
+                        onSave(finalTitle, rating, descValue)
                         dismiss()
                     }
                 }

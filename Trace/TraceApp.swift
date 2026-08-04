@@ -12,6 +12,7 @@ import SwiftData
 struct TraceApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
+            Log.self,
             Entry.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)

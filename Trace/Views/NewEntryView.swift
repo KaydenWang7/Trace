@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import PhotosUI
 
 struct NewEntryView: View {
     
@@ -17,6 +18,7 @@ struct NewEntryView: View {
     @State private var title: String = ""
     @State private var rating: Double? = nil
     @State private var desc: String = ""
+    @State private var photoData: Data? = nil
 
     var body: some View {
         NavigationStack {
@@ -25,6 +27,7 @@ struct NewEntryView: View {
                 title: $title,
                 rating: $rating,
                 desc: $desc,
+                photoData: $photoData,
                 onChange: {}
             )
             .toolbar {
@@ -37,7 +40,7 @@ struct NewEntryView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(role: .confirm) {
-                        let created = Entry(timestamp: timestamp, title: title, rating: rating, desc: desc.isEmpty ? nil : desc)
+                        let created = Entry(timestamp: timestamp, title: title.isEmpty ? "Untitled" : title, rating: rating, desc: desc.isEmpty ? nil : desc, photoData: photoData)
                         modelContext.insert(created)
                         dismiss()
                     } label: {

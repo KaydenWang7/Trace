@@ -14,14 +14,16 @@ final class Entry {
     var title: String
     var rating: Double?
     var desc: String? = nil
+    var photoData: Data? = nil
     
     var log: Log?
     
-    init(timestamp: Date, title: String, rating: Double? = nil, desc: String? = nil, log: Log? = nil) {
+    init(timestamp: Date, title: String, rating: Double? = nil, desc: String? = nil, photoData: Data? = nil, log: Log? = nil) {
         self.timestamp = timestamp
         self.title = title
         self.rating = rating
         self.desc = desc
+        self.photoData = photoData
         self.log = log
     }
 }

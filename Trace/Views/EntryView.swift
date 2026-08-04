@@ -8,6 +8,20 @@
 import SwiftUI
 import SwiftData
 
+private struct LabeledValue<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            content()
+        }
+    }
+}
+
 struct EntryView: View {
     
     @Bindable var entry: Entry
@@ -15,31 +29,33 @@ struct EntryView: View {
     
     var body: some View {
         List() {
-            VStack(alignment: .leading) {
-                Text("Timestamp")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            LabeledValue(title: "Timestamp") {
                 Text(entry.timestamp.formatted(date: .abbreviated, time: .shortened))
                     .font(.body)
             }
             
-            if let rating = entry.rating {
-                VStack(alignment: .leading) {
-                    Text("Rating")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(String(rating.formatted()))
-                }
-            } else {
-                VStack(alignment: .leading) {
-                    Text("Rating")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            LabeledValue(title: "Rating") {
+                if let rating = entry.rating {
+                    Text(rating.formatted())
+                        .monospacedDigit()
+                } else {
                     Text("No rating")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            
+            if let data = entry.photoData, let uiImage = UIImage(data: data) {
+                LabeledValue(title: "Photo") {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxHeight: 240)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
             }
             Section("Description") {
                 Text(entry.desc ?? "")
+                    .textSelection(.enabled)
             }
         }
         .navigationTitle(entry.title)
