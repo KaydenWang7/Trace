@@ -49,11 +49,9 @@ struct LogView: View {
                     }
                     .padding(.vertical, 8)
                 }
-                .if(showGradient) { view in
-                    view.listRowBackground(
-                        LinearGradient(colors: rowGradientColors(for: entry.rating), startPoint: .topLeading, endPoint: .bottomTrailing)
-                    )
-                }
+                .listRowBackground(
+                    showGradient ? LinearGradient(colors: rowGradientColors(for: entry.rating), startPoint: .topLeading, endPoint: .bottomTrailing) : nil
+                )
             }
             .onDelete(perform: deleteEntries)
         }
@@ -74,9 +72,7 @@ struct LogView: View {
         }
         .navigationTitle(log.title)
         .sheet(isPresented: $showingNewEntrySheet) {
-            NewEntryViewForLog { title, rating, desc in
-                addEntry(title: title, rating: rating, desc: desc)
-            }
+            NewEntryView(log: log)
         }
         .sheet(isPresented: $showingRenameSheet) {
             NavigationStack {
@@ -114,12 +110,6 @@ struct LogView: View {
         }
     }
     
-    private func addEntry(title: String, rating: Double?, desc: String?) {
-        let entry = Entry(timestamp: Date(), title: title, rating: rating, desc: desc, log: log)
-        modelContext.insert(entry)
-        try? modelContext.save()
-    }
-    
     private func rowGradientColors(for rating: Double?) -> [Color] {
         guard let rating = rating else {
             // No rating: subtle gray gradient
@@ -143,65 +133,6 @@ struct LogView: View {
         let base = Color(hue: hue, saturation: 0.80, brightness: 1.0)
         let lighter = Color(hue: hue, saturation: 0.60, brightness: 1.0)
         return [base.opacity(0.30), lighter.opacity(0.22)]
-    }
-}
-
-extension View {
-    @ViewBuilder
-    func `if`<Content: View>(_ condition: Bool, transform: (Self) -> Content) -> some View {
-        if condition {
-            transform(self)
-        } else {
-            self
-        }
-    }
-}
-
-struct NewEntryViewForLog: View {
-    @Environment(\.dismiss) private var dismiss
-    @State private var timestamp: Date = Date()
-    @State private var title: String = ""
-    @State private var ratingText: String = ""
-    @State private var desc: String = ""
-    @State private var photoData: Data? = nil
-    var onSave: (String, Double?, String?) -> Void
-
-    var body: some View {
-        NavigationStack {
-            EntryForm(
-                timestamp: $timestamp,
-                title: $title,
-                rating: Binding<Double?>(
-                    get: { Double(ratingText) },
-                    set: { newValue in
-                        if let v = newValue {
-                            ratingText = String(v)
-                        } else {
-                            ratingText = ""
-                        }
-                    }
-                ),
-                desc: $desc,
-                photoData: $photoData,
-                onChange: { }
-            )
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        let rating = Double(ratingText)
-                        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
-                        let finalTitle = trimmedTitle.isEmpty ? "" : trimmedTitle
-                        let trimmedDesc = desc.trimmingCharacters(in: .whitespacesAndNewlines)
-                        let descValue: String? = trimmedDesc.isEmpty ? nil : trimmedDesc
-                        onSave(finalTitle, rating, descValue)
-                        dismiss()
-                    }
-                }
-            }
-        }
     }
 }
 

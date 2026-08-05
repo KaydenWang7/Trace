@@ -79,9 +79,11 @@ struct EditEntryView: View {
             ) {
                 Button("Save", role: .confirm) {
                     entry.timestamp = draftTimestamp
-                    entry.title = draftTitle
+                    let trimmedTitle = draftTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+                    entry.title = trimmedTitle.isEmpty ? "Untitled" : trimmedTitle
                     entry.rating = draftRating
-                    entry.desc = draftDesc.isEmpty ? nil : draftDesc
+                    let trimmedDesc = draftDesc.trimmingCharacters(in: .whitespacesAndNewlines)
+                    entry.desc = trimmedDesc.isEmpty ? nil : trimmedDesc
                     entry.photoData = draftPhotoData
                     dismiss()
                 }

@@ -10,6 +10,7 @@ import SwiftData
 import PhotosUI
 
 struct NewEntryView: View {
+    let log: Log
     
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -32,23 +33,36 @@ struct NewEntryView: View {
             )
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(role: .cancel) {
+                    Button("Cancel") {
                         dismiss()
-                    } label: {
-                        Label("Cancel", systemImage: "xmark")
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(role: .confirm) {
-                        let created = Entry(timestamp: timestamp, title: title.isEmpty ? "Untitled" : title, rating: rating, desc: desc.isEmpty ? nil : desc, photoData: photoData)
-                        modelContext.insert(created)
+                    Button("Save") {
+                        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let finalTitle = trimmedTitle.isEmpty ? "Untitled" : trimmedTitle
+                        let trimmedDesc = desc.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let descValue: String? = trimmedDesc.isEmpty ? nil : trimmedDesc
+                        let entry = Entry(
+                            timestamp: timestamp,
+                            title: finalTitle,
+                            rating: rating,
+                            desc: descValue,
+                            photoData: photoData,
+                            log: log
+                        )
+                        modelContext.insert(entry)
+                        try? modelContext.save()
                         dismiss()
-                    } label: {
-                        Label("Done", systemImage: "checkmark")
                     }
                 }
             }
         }
     }
+}
+
+#Preview {
+    NewEntryView(log: Log(title: "Sample Log"))
+        .modelContainer(for: [Log.self, Entry.self], inMemory: true)
 }
 
