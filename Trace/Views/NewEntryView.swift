@@ -20,6 +20,7 @@ struct NewEntryView: View {
     @State private var rating: Double? = nil
     @State private var desc: String = ""
     @State private var photoData: Data? = nil
+    @State private var locationManager = LocationManager()
 
     var body: some View {
         NavigationStack {
@@ -40,7 +41,13 @@ struct NewEntryView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
-                        let finalTitle = trimmedTitle.isEmpty ? "Untitled" : trimmedTitle
+                        // Smart fallback: use location name as title only if left blank
+                        let finalTitle: String
+                        if trimmedTitle.isEmpty {
+                            finalTitle = locationManager.locationName ?? "Untitled"
+                        } else {
+                            finalTitle = trimmedTitle
+                        }
                         let trimmedDesc = desc.trimmingCharacters(in: .whitespacesAndNewlines)
                         let descValue: String? = trimmedDesc.isEmpty ? nil : trimmedDesc
                         let entry = Entry(
@@ -49,6 +56,9 @@ struct NewEntryView: View {
                             rating: rating,
                             desc: descValue,
                             photoData: photoData,
+                            latitude: locationManager.coordinate?.latitude,
+                            longitude: locationManager.coordinate?.longitude,
+                            locationName: locationManager.locationName,
                             log: log
                         )
                         modelContext.insert(entry)
@@ -56,6 +66,10 @@ struct NewEntryView: View {
                         dismiss()
                     }
                 }
+            }
+            .onAppear {
+                locationManager.requestPermission()
+                locationManager.fetchLocation()
             }
         }
     }
@@ -65,4 +79,5 @@ struct NewEntryView: View {
     NewEntryView(log: Log(title: "Sample Log"))
         .modelContainer(for: [Log.self, Entry.self], inMemory: true)
 }
+
 

@@ -20,6 +20,9 @@ struct EditEntryView: View {
     @State private var draftRating: Double? = nil
     @State private var draftDesc: String = ""
     @State private var draftPhotoData: Data? = nil
+    @State private var draftLatitude: Double? = nil
+    @State private var draftLongitude: Double? = nil
+    @State private var draftLocationName: String? = nil
     
     init(entry: Entry) {
         self.entry = entry
@@ -28,6 +31,9 @@ struct EditEntryView: View {
         _draftRating = State(initialValue: entry.rating)
         _draftDesc = State(initialValue: entry.desc ?? "")
         _draftPhotoData = State(initialValue: entry.photoData)
+        _draftLatitude = State(initialValue: entry.latitude)
+        _draftLongitude = State(initialValue: entry.longitude)
+        _draftLocationName = State(initialValue: entry.locationName)
     }
     
     var body: some View {
@@ -85,6 +91,9 @@ struct EditEntryView: View {
                     let trimmedDesc = draftDesc.trimmingCharacters(in: .whitespacesAndNewlines)
                     entry.desc = trimmedDesc.isEmpty ? nil : trimmedDesc
                     entry.photoData = draftPhotoData
+                    entry.latitude = draftLatitude
+                    entry.longitude = draftLongitude
+                    entry.locationName = draftLocationName
                     dismiss()
                 }
                 Button("Cancel", role: .cancel) { }

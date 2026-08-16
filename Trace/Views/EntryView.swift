@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import MapKit
 
 private struct LabeledValue<Content: View>: View {
     let title: String
@@ -26,6 +27,7 @@ struct EntryView: View {
     
     @Bindable var entry: Entry
     @State private var showingSheet = false
+    @State private var showingLocationEditor = false
     
     var body: some View {
         List() {
@@ -53,6 +55,26 @@ struct EntryView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
             }
+            
+            if let lat = entry.latitude, let lon = entry.longitude {
+                let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+                LabeledValue(title: entry.locationName ?? "Location") {
+                    Map(initialPosition: .region(MKCoordinateRegion(
+                        center: coordinate,
+                        span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
+                    ))) {
+                        Marker(entry.locationName ?? "Location", coordinate: coordinate)
+                    }
+                    .frame(height: 180)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .allowsHitTesting(false)
+                    .mapControlVisibility(.hidden)
+                }
+                .onTapGesture {
+                    showingLocationEditor = true
+                }
+            }
+            
             Section("Description") {
                 Text(entry.desc ?? "")
                     .textSelection(.enabled)
@@ -72,6 +94,9 @@ struct EntryView: View {
         .sheet(isPresented: $showingSheet) {
             EditEntryView(entry: entry)
         }
+        .sheet(isPresented: $showingLocationEditor) {
+            LocationEditorView(entry: entry)
+        }
     }
 }
 
@@ -79,3 +104,4 @@ struct EntryView: View {
     EntryView(entry: Entry(timestamp: Date(), title: "", rating: 5))
         .modelContainer(for: Entry.self, inMemory: true)
 }
+
