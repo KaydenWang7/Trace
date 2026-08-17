@@ -27,6 +27,13 @@ struct ContentView: View {
             }
             .navigationTitle("All Logs")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    NavigationLink {
+                        AllEntriesMapView()
+                    } label: {
+                        Label("Map", systemImage: "map")
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showingNewLogSheet = true } label: { Label("Add Log", systemImage: "plus") }
                 }
