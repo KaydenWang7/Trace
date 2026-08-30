@@ -1,5 +1,13 @@
+//
+//  EntryForm.swift
+//  Trace
+//
+//  Created by Kayden Wang on 2/4/26.
+//
+
 import SwiftUI
 import PhotosUI
+import MapKit
 
 struct EntryForm: View {
     @Binding var timestamp: Date
@@ -7,7 +15,16 @@ struct EntryForm: View {
     @Binding var rating: Double?
     @Binding var desc: String
     @Binding var photoData: Data?
+    @Binding var latitude: Double?
+    @Binding var longitude: Double?
+    @Binding var locationName: String?
+    
     var onChange: () -> Void = {}
+    var titleFocused: FocusState<Bool>.Binding
+    var isNewEntry: Bool = false
+    
+    @AppStorage("recordLocation") private var recordLocation: Bool = true
+    @State private var showingLocationEditor = false
 
     private static let ratingFormatter: NumberFormatter = {
         let f = NumberFormatter()
@@ -50,6 +67,7 @@ struct EntryForm: View {
             Section("Details") {
                 TextField("Title", text: $title)
                     .textInputAutocapitalization(.sentences)
+                    .focused(titleFocused)
                     .onChange(of: title) { onChange() }
 
                 DatePicker("Timestamp", selection: $timestamp, displayedComponents: [.date, .hourAndMinute])
@@ -89,8 +107,31 @@ struct EntryForm: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    PhotosPicker(selection: $selectedItem, matching: .images, photoLibrary: .shared()) {
-                        Label(photoData == nil ? "Add Photo" : "Replace Photo", systemImage: "photo")
+                    HStack(spacing: 20) {
+                        if photoData == nil {
+                            PhotosPicker(selection: $selectedItem, matching: .images, photoLibrary: .shared()) {
+                                Image(systemName: "photo.badge.plus")
+                                    .font(.title2)
+                                    .foregroundStyle(.blue)
+                            }
+                        } else {
+                            PhotosPicker(selection: $selectedItem, matching: .images, photoLibrary: .shared()) {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                                    .font(.title2)
+                                    .foregroundStyle(.blue)
+                            }
+
+                            Button {
+                                photoData = nil
+                                selectedItem = nil
+                                onChange()
+                            } label: {
+                                Image(systemName: "trash")
+                                    .font(.title2)
+                                    .foregroundStyle(.red)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                     .onChange(of: selectedItem) { oldValue, newValue in
                         guard let newItem = newValue else { return }
@@ -99,20 +140,66 @@ struct EntryForm: View {
                                 photoData = data
                                 onChange()
                             }
+                            selectedItem = nil
                         }
                     }
-
-                    if photoData != nil {
-                        Button(role: .destructive) {
-                            photoData = nil
-                            onChange()
+                }
+            }
+            
+            if recordLocation && !isNewEntry {
+                Section("Location") {
+                    if let lat = latitude, let lon = longitude {
+                        let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+                        VStack(alignment: .leading) {
+                            Map(initialPosition: .region(MKCoordinateRegion(
+                                center: coordinate,
+                                span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
+                            ))) {
+                                Marker(locationName ?? "Location", coordinate: coordinate)
+                            }
+                            .frame(height: 180)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .allowsHitTesting(false)
+                            .mapControlVisibility(.hidden)
+                            .onTapGesture {
+                                showingLocationEditor = true
+                            }
+                            
+                            HStack {
+                                Button("Edit Location") {
+                                    showingLocationEditor = true
+                                }
+                                .font(.subheadline)
+                                .buttonStyle(.borderless)
+                                
+                                Spacer()
+                                
+                                Button(role: .destructive) {
+                                    latitude = nil
+                                    longitude = nil
+                                    locationName = nil
+                                    onChange()
+                                } label: {
+                                    Image(systemName: "trash")
+                                }
+                                .buttonStyle(.borderless)
+                            }
+                            .padding(.top, 8)
+                        }
+                    } else {
+                        Button {
+                            showingLocationEditor = true
                         } label: {
-                            Label("Remove Photo", systemImage: "trash")
+                            Label("Add Location", systemImage: "location.badge.plus")
                         }
                     }
                 }
             }
         }
+        .sheet(isPresented: $showingLocationEditor) {
+            LocationEditorView(latitude: Binding(get: { latitude }, set: { latitude = $0; onChange() }),
+                               longitude: Binding(get: { longitude }, set: { longitude = $0; onChange() }),
+                               locationName: Binding(get: { locationName }, set: { locationName = $0; onChange() }))
+        }
     }
 }
-

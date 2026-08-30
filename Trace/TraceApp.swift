@@ -10,6 +10,8 @@ import SwiftData
 
 @main
 struct TraceApp: App {
+    @State private var errorHandler = ErrorHandler()
+    
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Log.self,
@@ -27,6 +29,15 @@ struct TraceApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(errorHandler)
+                .alert(
+                    "Something went wrong",
+                    isPresented: $errorHandler.showError
+                ) {
+                    Button("OK", role: .cancel) { }
+                } message: {
+                    Text(errorHandler.currentError?.errorDescription ?? "An unknown error occurred.")
+                }
         }
         .modelContainer(sharedModelContainer)
     }

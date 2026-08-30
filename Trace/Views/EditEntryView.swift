@@ -12,6 +12,8 @@ struct EditEntryView: View {
     
     @Bindable var entry: Entry
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @Environment(ErrorHandler.self) private var errorHandler
     @State private var showDiscardDialog = false
     @State private var showSaveDialog = false
     @State private var hasChanges = false
@@ -36,6 +38,8 @@ struct EditEntryView: View {
         _draftLocationName = State(initialValue: entry.locationName)
     }
     
+    @FocusState private var isTitleFocused: Bool
+    
     var body: some View {
         NavigationStack {
             EntryForm(
@@ -44,7 +48,11 @@ struct EditEntryView: View {
                 rating: $draftRating,
                 desc: $draftDesc,
                 photoData: $draftPhotoData,
-                onChange: { hasChanges = true }
+                latitude: $draftLatitude,
+                longitude: $draftLongitude,
+                locationName: $draftLocationName,
+                onChange: { hasChanges = true },
+                titleFocused: $isTitleFocused
             )
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -94,6 +102,11 @@ struct EditEntryView: View {
                     entry.latitude = draftLatitude
                     entry.longitude = draftLongitude
                     entry.locationName = draftLocationName
+                    do {
+                        try modelContext.save()
+                    } catch {
+                        errorHandler.handle(error)
+                    }
                     dismiss()
                 }
                 Button("Cancel", role: .cancel) { }
@@ -108,4 +121,3 @@ struct EditEntryView: View {
     EditEntryView(entry: Entry(timestamp: Date(), title: "", rating: 5))
         .modelContainer(for: Entry.self, inMemory: true)
 }
-

@@ -41,4 +41,3 @@ final class Entry {
         self.log = log
     }
 }
-

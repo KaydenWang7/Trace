@@ -10,7 +10,7 @@ import CoreLocation
 import MapKit
 import Observation
 
-@Observable
+@Observable @MainActor
 final class LocationManager: NSObject, CLLocationManagerDelegate {
     var coordinate: CLLocationCoordinate2D?
     var locationName: String?
@@ -42,7 +42,7 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
     }
     
     /// Reverse-geocode an arbitrary coordinate using MKReverseGeocodingRequest.
-    func reverseGeocode(_ coordinate: CLLocationCoordinate2D) async -> String? {
+    nonisolated static func reverseGeocode(_ coordinate: CLLocationCoordinate2D) async -> String? {
         let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
         guard let request = MKReverseGeocodingRequest(location: location) else { return nil }
         do {
@@ -56,15 +56,15 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
     
     // MARK: - CLLocationManagerDelegate
     
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.first else {
-            isLoading = false
+            Task { @MainActor in self.isLoading = false }
             return
         }
         
-        coordinate = location.coordinate
-        
         Task { @MainActor in
+            self.coordinate = location.coordinate
+            
             if let request = MKReverseGeocodingRequest(location: location) {
                 do {
                     let mapItems = try await request.mapItems
@@ -79,17 +79,19 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
         }
     }
     
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         print("Location fetch failed: \(error.localizedDescription)")
-        isLoading = false
+        Task { @MainActor in self.isLoading = false }
     }
     
-    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        authorizationStatus = manager.authorizationStatus
-        // Auto-fetch once authorized
-        if authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways {
-            fetchLocation()
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
+        Task { @MainActor in
+            self.authorizationStatus = status
+            // Auto-fetch once authorized
+            if status == .authorizedWhenInUse || status == .authorizedAlways {
+                self.fetchLocation()
+            }
         }
     }
 }
-

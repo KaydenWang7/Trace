@@ -27,7 +27,6 @@ struct EntryView: View {
     
     @Bindable var entry: Entry
     @State private var showingSheet = false
-    @State private var showingLocationEditor = false
     
     var body: some View {
         List() {
@@ -56,46 +55,50 @@ struct EntryView: View {
                 }
             }
             
-            if let lat = entry.latitude, let lon = entry.longitude {
-                let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon)
-                LabeledValue(title: entry.locationName ?? "Location") {
-                    Map(initialPosition: .region(MKCoordinateRegion(
-                        center: coordinate,
-                        span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
-                    ))) {
-                        Marker(entry.locationName ?? "Location", coordinate: coordinate)
+            @AppStorage("recordLocation") var recordLocation: Bool = true
+            
+            if recordLocation {
+                if let lat = entry.latitude, let lon = entry.longitude {
+                    let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+                    LabeledValue(title: entry.locationName ?? "Location") {
+                        Map(initialPosition: .region(MKCoordinateRegion(
+                            center: coordinate,
+                            span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
+                        ))) {
+                            Marker(entry.locationName ?? "Location", coordinate: coordinate)
+                        }
+                        .frame(height: 180)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .allowsHitTesting(false)
+                        .mapControlVisibility(.hidden)
                     }
-                    .frame(height: 180)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .allowsHitTesting(false)
-                    .mapControlVisibility(.hidden)
-                }
-                .onTapGesture {
-                    showingLocationEditor = true
                 }
             }
             
             Section("Description") {
-                Text(entry.desc ?? "")
-                    .textSelection(.enabled)
+                if let desc = entry.desc, !desc.isEmpty {
+                    Text(desc)
+                        .textSelection(.enabled)
+                } else {
+                    Text("No description")
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .navigationTitle(entry.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
+            ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     showingSheet.toggle()
                 } label: {
-                    Image(systemName: "slider.horizontal.3")
+                    Image(systemName: "pencil")
                 }
+                .accessibilityLabel("Edit entry")
             }
         }
         .sheet(isPresented: $showingSheet) {
             EditEntryView(entry: entry)
-        }
-        .sheet(isPresented: $showingLocationEditor) {
-            LocationEditorView(entry: entry)
         }
     }
 }
@@ -104,4 +107,3 @@ struct EntryView: View {
     EntryView(entry: Entry(timestamp: Date(), title: "", rating: 5))
         .modelContainer(for: Entry.self, inMemory: true)
 }
-

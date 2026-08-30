@@ -11,10 +11,17 @@ import SwiftData
 struct LogView: View {
     let log: Log
     @Environment(\.modelContext) private var modelContext
+    @Environment(ErrorHandler.self) private var errorHandler
     @Query private var entries: [Entry]
     @State private var showingNewEntrySheet = false
-    @State private var showingRenameSheet = false
+    @State private var showingEditSheet = false
+    @State private var showingStatsSheet = false
     @State private var editedTitle: String = ""
+    @State private var editedIcon: String = "book.closed"
+    @State private var editedColor: String = "blue"
+    @State private var selectedEntries = Set<PersistentIdentifier>()
+    @State private var showingDeleteConfirmation = false
+    @State private var editMode: EditMode = .inactive
     @AppStorage("showGradient") private var showGradient: Bool = true
 
     init(log: Log) {
@@ -24,89 +31,169 @@ struct LogView: View {
     }
 
     var body: some View {
-        List {
-            ForEach(entries) { entry in
-                NavigationLink(destination: EntryView(entry: entry)) {
-                    HStack(alignment: .center, spacing: 12) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(entry.title)
-                            Text(entry.timestamp, format: Date.FormatStyle(date: .numeric, time: .shortened))
-                                .foregroundStyle(.secondary)
-                            if let desc = entry.desc, !desc.isEmpty {
-                                Text(desc)
-                                    .lineLimit(1)
+        ZStack(alignment: .bottomTrailing) {
+            List(selection: $selectedEntries) {
+                ForEach(entries) { entry in
+                    NavigationLink(destination: EntryView(entry: entry)) {
+                        HStack(alignment: .center, spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(entry.title)
+                                Text(entry.timestamp, format: Date.FormatStyle(date: .numeric, time: .shortened))
                                     .foregroundStyle(.secondary)
+                                if let desc = entry.desc, !desc.isEmpty {
+                                    Text(desc)
+                                        .lineLimit(1)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            Spacer()
+                            if let rating = entry.rating {
+                                Text(rating.formatted())
+                                    .font(.headline)
+                                    .monospacedDigit()
+                                    .foregroundStyle(.primary)
+                                    .multilineTextAlignment(.trailing)
                             }
                         }
-                        Spacer()
-                        if let rating = entry.rating {
-                            Text(rating.formatted())
-                                .font(.headline)
-                                .monospacedDigit()
-                                .foregroundStyle(.primary)
-                                .multilineTextAlignment(.trailing)
+                        .padding(.vertical, 8)
+                    }
+                    .listRowBackground(
+                        showGradient ? LinearGradient(colors: rowGradientColors(for: entry.rating), startPoint: .topLeading, endPoint: .bottomTrailing) : nil
+                    )
+                }
+            }
+            .environment(\.editMode, $editMode)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: { showingStatsSheet = true }) {
+                        Label("Statistics", systemImage: "chart.bar")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: {
+                        editedTitle = log.title
+                        editedIcon = log.icon
+                        editedColor = log.iconColor
+                        showingEditSheet = true
+                    }) {
+                        Label("Edit Log", systemImage: "pencil")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        withAnimation {
+                            if editMode == .active {
+                                editMode = .inactive
+                                selectedEntries.removeAll()
+                            } else {
+                                editMode = .active
+                            }
                         }
-                    }
-                    .padding(.vertical, 8)
-                }
-                .listRowBackground(
-                    showGradient ? LinearGradient(colors: rowGradientColors(for: entry.rating), startPoint: .topLeading, endPoint: .bottomTrailing) : nil
-                )
-            }
-            .onDelete(perform: deleteEntries)
-        }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button(action: {
-                    editedTitle = log.title
-                    showingRenameSheet = true
-                }) {
-                    Label("Rename Log", systemImage: "pencil")
-                }
-            }
-            ToolbarItem {
-                Button(action: { showingNewEntrySheet = true }) {
-                    Label("Add Entry", systemImage: "plus")
-                }
-            }
-        }
-        .navigationTitle(log.title)
-        .sheet(isPresented: $showingNewEntrySheet) {
-            NewEntryView(log: log)
-        }
-        .sheet(isPresented: $showingRenameSheet) {
-            NavigationStack {
-                Form {
-                    Section("Title") {
-                        TextField("Log title", text: $editedTitle)
-                            .textInputAutocapitalization(.words)
-                            .disableAutocorrection(false)
+                    } label: {
+                        Image(systemName: editMode == .active ? "checkmark.circle.fill" : "checkmark.circle")
                     }
                 }
-                .navigationTitle("Rename Log")
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { showingRenameSheet = false }
-                    }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Save") {
-                            let newTitle = editedTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-                            guard !newTitle.isEmpty else { return }
-                            log.title = newTitle
-                            try? modelContext.save()
-                            showingRenameSheet = false
+                if editMode == .active && !selectedEntries.isEmpty {
+                    ToolbarItem(placement: .bottomBar) {
+                        Button(role: .destructive) {
+                            showingDeleteConfirmation = true
+                        } label: {
+                            Label("Delete", systemImage: "trash")
                         }
                     }
                 }
+            }
+            .confirmationDialog(
+                "Delete \(selectedEntries.count) Entr\(selectedEntries.count == 1 ? "y" : "ies")?",
+                isPresented: $showingDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    deleteSelectedEntries()
+                }
+            } message: {
+                Text("\(selectedEntries.count == 1 ? "This entry" : "These entries") will be permanently deleted. This action cannot be undone.")
+            }
+            .navigationTitle(log.title)
+            .sheet(isPresented: $showingNewEntrySheet) {
+                NewEntryView(log: log)
+            }
+            .sheet(isPresented: $showingStatsSheet) {
+                LogStatsView(entries: entries)
+            }
+            .sheet(isPresented: $showingEditSheet) {
+                NavigationStack {
+                    Form {
+                        Section {
+                            HStack {
+                                Image(systemName: editedIcon)
+                                    .font(.title3)
+                                    .foregroundStyle(.white)
+                                    .frame(width: 36, height: 36)
+                                    .background(LogTheme.color(for: editedColor), in: RoundedRectangle(cornerRadius: 8))
+                                TextField("Log title", text: $editedTitle)
+                                    .textInputAutocapitalization(.words)
+                                    .disableAutocorrection(false)
+                            }
+                        }
+                        
+                        LogIconPickerSections(selectedIcon: $editedIcon, selectedColor: $editedColor)
+                    }
+                    .navigationTitle("Edit Log")
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") { showingEditSheet = false }
+                        }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Save") {
+                                let newTitle = editedTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+                                guard !newTitle.isEmpty else { return }
+                                log.title = newTitle
+                                log.icon = editedIcon
+                                log.iconColor = editedColor
+                                do {
+                                    try modelContext.save()
+                                } catch {
+                                    errorHandler.handle(error)
+                                }
+                                showingEditSheet = false
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Floating add button — liquid glass
+            if editMode == .inactive {
+                Button {
+                    showingNewEntrySheet = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .frame(width: 56, height: 56)
+                }
+                .glassEffect(.regular, in: .circle)
+                .shadow(radius: 4, y: 2)
+                .padding(.trailing, 20)
+                .padding(.bottom, 20)
+                .accessibilityLabel("Add new entry")
             }
         }
     }
 
-    private func deleteEntries(offsets: IndexSet) {
+    private func deleteSelectedEntries() {
         withAnimation {
-            for index in offsets {
-                modelContext.delete(entries[index])
+            for entry in entries where selectedEntries.contains(entry.persistentModelID) {
+                modelContext.delete(entry)
             }
+            do {
+                try modelContext.save()
+            } catch {
+                errorHandler.handle(error)
+            }
+            selectedEntries.removeAll()
+            editMode = .inactive
         }
     }
     
@@ -115,21 +202,7 @@ struct LogView: View {
             // No rating: subtle gray gradient
             return [Color(uiColor: .secondarySystemGroupedBackground)]
         }
-        // Clamp rating between 0 and 10
-        let clamped = max(0, min(10, rating))
-        // Map 0..10 to hue with 0 = red, 5 = yellow, 10 = green using easing and piecewise interpolation
-        let t = Double(clamped) / 10.0
-        // Piecewise interpolate hue: 0.0 (red) -> 0.16 (yellow) -> 0.33 (green)
-        let hue: Double
-        if t <= 0.5 {
-            // Map 0..0.5 to red..yellow
-            let local = t / 0.5 // 0..1
-            hue = 0.0 + (0.16 - 0.0) * local
-        } else {
-            // Map 0.5..1.0 to yellow..green
-            let local = (t - 0.5) / 0.5 // 0..1
-            hue = 0.16 + (0.33 - 0.16) * local
-        }
+        let hue = LogTheme.ratingHue(for: rating)
         let base = Color(hue: hue, saturation: 0.80, brightness: 1.0)
         let lighter = Color(hue: hue, saturation: 0.60, brightness: 1.0)
         return [base.opacity(0.30), lighter.opacity(0.22)]
@@ -143,4 +216,3 @@ struct LogView: View {
     return LogView(log: previewLog)
         .modelContainer(container)
 }
-

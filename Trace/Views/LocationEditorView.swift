@@ -10,16 +10,25 @@ import SwiftData
 import MapKit
 
 struct LocationEditorView: View {
-    @Bindable var entry: Entry
+    @Binding var latitude: Double?
+    @Binding var longitude: Double?
+    @Binding var locationName: String?
+    
     @Environment(\.dismiss) private var dismiss
     
     @State private var cameraPosition: MapCameraPosition
     @State private var selectedCoordinate: CLLocationCoordinate2D
     @State private var isSaving = false
     
-    init(entry: Entry) {
-        self.entry = entry
-        let coord = entry.coordinate ?? CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194) // Default to SF
+    init(latitude: Binding<Double?>, longitude: Binding<Double?>, locationName: Binding<String?>) {
+        self._latitude = latitude
+        self._longitude = longitude
+        self._locationName = locationName
+        
+        let initialLat = latitude.wrappedValue ?? 37.7749
+        let initialLon = longitude.wrappedValue ?? -122.4194
+        let coord = CLLocationCoordinate2D(latitude: initialLat, longitude: initialLon)
+        
         _cameraPosition = State(initialValue: .region(MKCoordinateRegion(
             center: coord,
             span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
@@ -62,12 +71,11 @@ struct LocationEditorView: View {
                         isSaving = true
                         Task {
                             // Reverse-geocode the new coordinate
-                            let locationManager = LocationManager()
-                            let name = await locationManager.reverseGeocode(selectedCoordinate)
+                            let name = await LocationManager.reverseGeocode(selectedCoordinate)
                             
-                            entry.latitude = selectedCoordinate.latitude
-                            entry.longitude = selectedCoordinate.longitude
-                            entry.locationName = name
+                            latitude = selectedCoordinate.latitude
+                            longitude = selectedCoordinate.longitude
+                            locationName = name
                             
                             isSaving = false
                             dismiss()
@@ -81,6 +89,5 @@ struct LocationEditorView: View {
 }
 
 #Preview {
-    LocationEditorView(entry: Entry(timestamp: Date(), title: "Sample", latitude: 37.7749, longitude: -122.4194, locationName: "San Francisco"))
-        .modelContainer(for: Entry.self, inMemory: true)
+    LocationEditorView(latitude: .constant(37.7749), longitude: .constant(-122.4194), locationName: .constant("San Francisco"))
 }
