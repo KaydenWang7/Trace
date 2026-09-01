@@ -22,7 +22,10 @@ struct LogView: View {
     @State private var selectedEntries = Set<PersistentIdentifier>()
     @State private var showingDeleteConfirmation = false
     @State private var editMode: EditMode = .inactive
+    @State private var navigateToMap = false
+    @State private var navigateToPhotos = false
     @AppStorage("showGradient") private var showGradient: Bool = true
+    @AppStorage("recordLocation") private var recordLocation: Bool = true
 
     init(log: Log) {
         self.log = log
@@ -34,7 +37,7 @@ struct LogView: View {
         ZStack(alignment: .bottomTrailing) {
             List(selection: $selectedEntries) {
                 ForEach(entries) { entry in
-                    NavigationLink(destination: EntryView(entry: entry)) {
+                    NavigationLink(value: entry) {
                         HStack(alignment: .center, spacing: 12) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(entry.title)
@@ -64,6 +67,20 @@ struct LogView: View {
             }
             .environment(\.editMode, $editMode)
             .toolbar {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    if recordLocation {
+                        Button {
+                            navigateToMap = true
+                        } label: {
+                            Label("Map", systemImage: "map")
+                        }
+                    }
+                    Button {
+                        navigateToPhotos = true
+                    } label: {
+                        Label("Photos", systemImage: "photo.on.rectangle.angled")
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: { showingStatsSheet = true }) {
                         Label("Statistics", systemImage: "chart.bar")
@@ -115,6 +132,15 @@ struct LogView: View {
                 Text("\(selectedEntries.count == 1 ? "This entry" : "These entries") will be permanently deleted. This action cannot be undone.")
             }
             .navigationTitle(log.title)
+            .navigationDestination(isPresented: $navigateToMap) {
+                AllEntriesMapView(initialLogID: log.persistentModelID)
+            }
+            .navigationDestination(isPresented: $navigateToPhotos) {
+                PhotoGalleryView(initialLogID: log.persistentModelID)
+            }
+            .navigationDestination(for: Entry.self) { entry in
+                EntryView(entry: entry)
+            }
             .sheet(isPresented: $showingNewEntrySheet) {
                 NewEntryView(log: log)
             }

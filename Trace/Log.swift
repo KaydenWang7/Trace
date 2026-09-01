@@ -10,13 +10,13 @@ import SwiftData
 
 @Model
 final class Log {
-    var createdAt: Date
-    var title: String
+    var createdAt: Date = Date()
+    var title: String = ""
     var icon: String = "book.closed"
     var iconColor: String = "blue"
     
     @Relationship(deleteRule: .cascade, inverse: \Entry.log)
-    var entries: [Entry] = []
+    var entries: [Entry]? = []
     
     init(title: String, icon: String = "book.closed", iconColor: String = "blue") {
         self.createdAt = .now

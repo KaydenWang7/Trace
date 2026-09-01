@@ -1,15 +1,14 @@
 //
-//  AllEntriesMapView.swift
+//  PhotoGalleryView.swift
 //  Trace
 //
-//  Created by Kayden Wang on 8/16/26.
+//  Created by Kayden Wang on 8/30/26.
 //
 
 import SwiftUI
 import SwiftData
-import MapKit
 
-struct AllEntriesMapView: View {
+struct PhotoGalleryView: View {
     var initialLogID: PersistentIdentifier? = nil
     
     @Query(sort: \Log.createdAt, order: .reverse) private var logs: [Log]
@@ -19,39 +18,67 @@ struct AllEntriesMapView: View {
     @State private var selectedEntry: Entry?
     @State private var hasAppliedInitialFilter = false
     
-    /// Entries filtered by the current picker selection, with valid coordinates only.
+    /// Entries filtered by the current picker selection, with photos only.
     private var displayedEntries: [Entry] {
         let source: [Entry]
         if let selectedLogID,
            let log = logs.first(where: { $0.persistentModelID == selectedLogID }) {
-            source = log.entries ?? []
+            source = (log.entries ?? []).sorted { $0.timestamp > $1.timestamp }
         } else {
             source = allEntries
         }
-        return source.filter { $0.latitude != nil && $0.longitude != nil }
+        return source.filter { $0.photoData != nil }
     }
+    
+    private let columns = [
+        GridItem(.adaptive(minimum: 110), spacing: 3)
+    ]
     
     var body: some View {
         ZStack(alignment: .top) {
-            Map(selection: $selectedEntry) {
-                ForEach(displayedEntries) { entry in
-                    if let lat = entry.latitude, let lon = entry.longitude {
-                        Marker(
-                            entry.title,
-                            coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon)
-                        )
-                        .tag(entry)
+            if displayedEntries.isEmpty {
+                ContentUnavailableView(
+                    "No Photos",
+                    systemImage: "photo.on.rectangle.angled",
+                    description: Text("Entries with photos will appear here.")
+                )
+            } else {
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 3) {
+                        ForEach(displayedEntries) { entry in
+                            if let data = entry.photoData, let uiImage = UIImage(data: data) {
+                                Button {
+                                    selectedEntry = entry
+                                } label: {
+                                    Color.clear
+                                        .aspectRatio(1, contentMode: .fit)
+                                        .overlay(
+                                            Image(uiImage: uiImage)
+                                                .resizable()
+                                                .scaledToFill()
+                                        )
+                                        .clipped()
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
                     }
+                    .padding(.top, 52) // space for the filter pill
+                    .padding(.horizontal, 1)
                 }
             }
-            .mapStyle(.standard(elevation: .realistic))
-            .ignoresSafeArea(edges: .bottom)
             
             // Filter picker
             filterPicker
         }
-        .navigationTitle("Map")
+        .navigationTitle("Photos")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            if !hasAppliedInitialFilter {
+                selectedLogID = initialLogID
+                hasAppliedInitialFilter = true
+            }
+        }
         .sheet(item: $selectedEntry) { entry in
             NavigationStack {
                 EntryView(
@@ -60,12 +87,6 @@ struct AllEntriesMapView: View {
                 )
             }
             .presentationDetents([.medium, .large])
-        }
-        .onAppear {
-            if !hasAppliedInitialFilter {
-                selectedLogID = initialLogID
-                hasAppliedInitialFilter = true
-            }
         }
     }
     
@@ -123,7 +144,7 @@ struct AllEntriesMapView: View {
 
 #Preview {
     NavigationStack {
-        AllEntriesMapView()
+        PhotoGalleryView()
     }
     .modelContainer(for: [Log.self, Entry.self], inMemory: true)
 }

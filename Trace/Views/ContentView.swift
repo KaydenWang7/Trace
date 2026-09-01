@@ -22,12 +22,15 @@ struct ContentView: View {
     @State private var showingDeleteConfirmation = false
     @State private var editMode: EditMode = .inactive
     
+    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding: Bool = false
+    @State private var showingOnboarding = false
+    
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottomTrailing) {
                 List(selection: $selectedLogs) {
                     ForEach(logs) { log in
-                        NavigationLink(destination: LogView(log: log)) {
+                        NavigationLink(value: log) {
                             HStack(spacing: 12) {
                                 // Icon with coloured background
                                 Image(systemName: log.icon)
@@ -65,6 +68,13 @@ struct ContentView: View {
                             } label: {
                                 Label("Map", systemImage: "map")
                             }
+                        }
+                    }
+                    ToolbarItem(placement: .topBarLeading) {
+                        NavigationLink {
+                            PhotoGalleryView()
+                        } label: {
+                            Label("Photos", systemImage: "photo.on.rectangle.angled")
                         }
                     }
                     ToolbarItem(placement: .topBarTrailing) {
@@ -142,6 +152,17 @@ struct ContentView: View {
                     .accessibilityLabel("Create new log")
                 }
             }
+            .navigationDestination(for: Log.self) { log in
+                LogView(log: log)
+            }
+        }
+        .onAppear {
+            if !hasSeenOnboarding {
+                showingOnboarding = true
+            }
+        }
+        .fullScreenCover(isPresented: $showingOnboarding) {
+            OnboardingView()
         }
     }
     
@@ -163,7 +184,7 @@ struct ContentView: View {
     /// Returns a two-unit relative time string like "3h 42m ago" from the
     /// most recent entry in the log's entries array.
     private func timeSinceLastEntry(log: Log) -> String {
-        guard let latest = log.entries.max(by: { $0.timestamp < $1.timestamp }) else {
+        guard let latest = (log.entries ?? []).max(by: { $0.timestamp < $1.timestamp }) else {
             return "No entries"
         }
         let interval = Date.now.timeIntervalSince(latest.timestamp)

@@ -17,6 +17,7 @@ struct SettingsView: View {
     @State private var showClearDataAlert = false
     @State private var showConfirmDialog = false
     @State private var confirmText = ""
+    @State private var showingOnboarding = false
     
     var body: some View {
         NavigationStack {
@@ -34,6 +35,16 @@ struct SettingsView: View {
                 }
                 
                 Section("About") {
+                    Button(action: {
+                        showingOnboarding = true
+                    }) {
+                        HStack {
+                            Image(systemName: "arrow.counterclockwise.circle")
+                            Text("Replay Onboarding")
+                        }
+                        .foregroundStyle(.primary)
+                    }
+                    
                     Link(destination: URL(string: "https://kaydenwang7.github.io/")!) {
                         HStack {
                             Image(systemName: "lock.shield")
@@ -92,6 +103,9 @@ struct SettingsView: View {
                 }
             } message: {
                 Text("Type CONFIRM to permanently delete all data.")
+            }
+            .fullScreenCover(isPresented: $showingOnboarding) {
+                OnboardingView()
             }
         }
     }

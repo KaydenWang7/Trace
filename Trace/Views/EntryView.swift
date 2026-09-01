@@ -26,6 +26,7 @@ private struct LabeledValue<Content: View>: View {
 struct EntryView: View {
     
     @Bindable var entry: Entry
+    var customTitle: String? = nil
     @State private var showingSheet = false
     
     var body: some View {
@@ -85,7 +86,7 @@ struct EntryView: View {
                 }
             }
         }
-        .navigationTitle(entry.title)
+        .navigationTitle(customTitle ?? entry.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

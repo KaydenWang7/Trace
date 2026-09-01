@@ -11,8 +11,8 @@ import CoreLocation
 
 @Model
 final class Entry {
-    var timestamp: Date
-    var title: String
+    var timestamp: Date = Date()
+    var title: String = ""
     var rating: Double?
     var desc: String? = nil
     var photoData: Data? = nil

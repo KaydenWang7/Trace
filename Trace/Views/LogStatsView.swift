@@ -28,10 +28,10 @@ private struct LogStatistics {
     let availableYears: [Int]
     /// year → month(1-12) → count
     let monthCounts: [Int: [Int: Int]]
-    /// year → weekOfYear(1-53) → count
-    let weekCounts: [Int: [Int: Int]]
     /// year → weekday-index(0=Mon…6=Sun) → count
     let dayCounts: [Int: [Int: Int]]
+    /// year → month(1-12) → day(1-31) → count
+    let calendarCounts: [Int: [Int: [Int: Int]]]
 
     // MARK: Timing
     let averageGap: TimeInterval?
@@ -81,17 +81,6 @@ private struct LogStatistics {
         }
         monthCounts = mc
 
-        // ── Week of year (per year) ──
-
-        var wc: [Int: [Int: Int]] = [:]
-        for entry in sorted {
-            let comps = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: entry.timestamp)
-            let y = comps.yearForWeekOfYear!
-            let w = comps.weekOfYear!
-            wc[y, default: [:]][w, default: 0] += 1
-        }
-        weekCounts = wc
-
         // ── Day of week (per year) ──
 
         var dc: [Int: [Int: Int]] = [:]
@@ -102,6 +91,16 @@ private struct LogStatistics {
             dc[y, default: [:]][index, default: 0] += 1
         }
         dayCounts = dc
+
+        // ── Calendar (per year, month, day) ──
+        var cc: [Int: [Int: [Int: Int]]] = [:]
+        for entry in sorted {
+            let y = calendar.component(.year, from: entry.timestamp)
+            let m = calendar.component(.month, from: entry.timestamp)
+            let d = calendar.component(.day, from: entry.timestamp)
+            cc[y, default: [:]][m, default: [:]][d, default: 0] += 1
+        }
+        calendarCounts = cc
 
         // ── Timing gaps ──
 
@@ -147,34 +146,23 @@ private struct LogStatistics {
         }
     }
 
-    // MARK: - Per-year chart data builders
+    // MARK: - Chart data builders
 
-    /// Jan–Dec for a given year, always 12 bars.
-    func monthData(for year: Int) -> [(label: String, count: Int)] {
+    /// Jan–Dec aggregated over all years, always 12 bars.
+    func monthData() -> [(label: String, count: Int)] {
         let symbols = DateFormatter().shortMonthSymbols!
         return (1...12).map { m in
-            (label: symbols[m - 1], count: monthCounts[year]?[m] ?? 0)
+            let total = availableYears.reduce(0) { $0 + (monthCounts[$1]?[m] ?? 0) }
+            return (label: symbols[m - 1], count: total)
         }
     }
 
-    /// W1–W52/53 for a given year.
-    func weekData(for year: Int) -> [(label: String, count: Int)] {
-        let calendar = Calendar.current
-        let dec31 = calendar.date(from: DateComponents(year: year, month: 12, day: 31))!
-        let maxWeek = calendar.component(.weekOfYear, from: dec31)
-        let totalWeeks = maxWeek == 1
-            ? calendar.component(.weekOfYear, from: calendar.date(byAdding: .day, value: -7, to: dec31)!)
-            : maxWeek
-        return (1...totalWeeks).map { w in
-            (label: "W\(w)", count: weekCounts[year]?[w] ?? 0)
-        }
-    }
-
-    /// Mon–Sun for a given year, always 7 bars. Uses unique full names.
-    func dayData(for year: Int) -> [(label: String, count: Int)] {
+    /// Mon–Sun aggregated over all years, always 7 bars. Uses unique full names.
+    func dayData() -> [(label: String, count: Int)] {
         let dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
         return dayNames.enumerated().map { i, name in
-            (label: name, count: dayCounts[year]?[i] ?? 0)
+            let total = availableYears.reduce(0) { $0 + (dayCounts[$1]?[i] ?? 0) }
+            return (label: name, count: total)
         }
     }
 }
@@ -184,14 +172,13 @@ private struct LogStatistics {
 private enum FrequencyMode: String, CaseIterable, Identifiable {
     case yearly = "Yearly"
     case monthly = "Monthly"
-    case weekly = "Weekly"
     case daily = "Daily"
 
     var id: String { rawValue }
 
     /// Whether this mode supports swiping between years.
     var supportsYearNavigation: Bool {
-        self != .yearly
+        false
     }
 }
 
@@ -244,6 +231,12 @@ struct LogStatsView: View {
             timingSection(s)
             ratingsSection(s)
             frequencySection(s)
+            
+            Section {
+                CalendarHeatmapView(calendarCounts: s.calendarCounts)
+            } header: {
+                Label("Calendar", systemImage: "calendar")
+            }
         }
         .onAppear {
             // Default to the most recent year with data
@@ -392,9 +385,8 @@ struct LogStatsView: View {
             let data: [(label: String, count: Int)] = {
                 switch frequencyMode {
                 case .yearly:  return s.entriesPerYear
-                case .monthly: return s.monthData(for: selectedYear)
-                case .weekly:  return s.weekData(for: selectedYear)
-                case .daily:   return s.dayData(for: selectedYear)
+                case .monthly: return s.monthData()
+                case .daily:   return s.dayData()
                 }
             }()
 
@@ -416,7 +408,6 @@ struct LogStatsView: View {
                         switch frequencyMode {
                         case .yearly:  return max(data.count, 1)
                         case .monthly: return 12
-                        case .weekly:  return 13  // show ~every 4th week label
                         case .daily:   return 7
                         }
                     }()
@@ -472,8 +463,6 @@ struct LogStatsView: View {
             return rawLabel
         case .monthly:
             return String(rawLabel.prefix(1))
-        case .weekly:
-            return rawLabel  // "W1", "W2", etc.
         case .daily:
             return Self.dayShortLabels[rawLabel] ?? rawLabel
         }
@@ -520,6 +509,181 @@ struct LogStatsView: View {
         let rating = Double(bucket) / 9.0 * 10.0
         let hue = LogTheme.ratingHue(for: rating)
         return Color(hue: hue, saturation: 0.75, brightness: 0.90)
+    }
+}
+
+// MARK: - Calendar Heatmap View
+
+struct CalendarHeatmapView: View {
+    let calendarCounts: [Int: [Int: [Int: Int]]]
+    @State private var currentYear: Int = Calendar.current.component(.year, from: .now)
+    @State private var currentMonth: Int = Calendar.current.component(.month, from: .now)
+    
+    private var daysInMonth: [Date?] {
+        let calendar = Calendar.current
+        var comps = DateComponents(year: currentYear, month: currentMonth, day: 1)
+        guard let firstDay = calendar.date(from: comps) else { return [] }
+        
+        let range = calendar.range(of: .day, in: .month, for: firstDay)!
+        let numDays = range.count
+        
+        let firstWeekday = calendar.component(.weekday, from: firstDay)
+        let leadingEmpty = (firstWeekday - calendar.firstWeekday + 7) % 7
+        
+        var days: [Date?] = Array(repeating: nil, count: leadingEmpty)
+        for d in 1...numDays {
+            comps.day = d
+            days.append(calendar.date(from: comps)!)
+        }
+        
+        while days.count % 7 != 0 {
+            days.append(nil)
+        }
+        return days
+    }
+    
+    private func colorForCount(_ count: Int) -> Color {
+        switch count {
+        case 0: return Color.secondary.opacity(0.1)
+        case 1: return Color.accentColor.opacity(0.3)
+        case 2: return Color.accentColor.opacity(0.5)
+        case 3: return Color.accentColor.opacity(0.7)
+        case 4: return Color.accentColor.opacity(0.85)
+        default: return Color.accentColor.opacity(1.0)
+        }
+    }
+    
+    private func weekdayHeader(for index: Int) -> String {
+        let calendar = Calendar.current
+        let weekday = (calendar.firstWeekday + index - 1) % 7
+        return calendar.shortWeekdaySymbols[weekday]
+    }
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            // Header with navigation
+            HStack {
+                Button(action: {
+                    if currentMonth == 1 {
+                        currentMonth = 12
+                        currentYear -= 1
+                    } else {
+                        currentMonth -= 1
+                    }
+                }) { Image(systemName: "chevron.left") }
+                
+                Spacer()
+                
+                Menu {
+                    ForEach(1...12, id: \.self) { m in
+                        Button(DateFormatter().monthSymbols[m - 1]) {
+                            currentMonth = m
+                        }
+                    }
+                } label: {
+                    Text(DateFormatter().monthSymbols[currentMonth - 1])
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                }
+                
+                Menu {
+                    let minYear = calendarCounts.keys.min() ?? currentYear
+                    let maxYear = calendarCounts.keys.max() ?? currentYear
+                    let startYear = min(minYear, currentYear) - 2
+                    let endYear = max(maxYear, currentYear) + 2
+                    ForEach(startYear...endYear, id: \.self) { y in
+                        Button(String(y)) {
+                            currentYear = y
+                        }
+                    }
+                } label: {
+                    Text(String(currentYear))
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                }
+
+                Spacer()
+                
+                Button(action: {
+                    if currentMonth == 12 {
+                        currentMonth = 1
+                        currentYear += 1
+                    } else {
+                        currentMonth += 1
+                    }
+                }) { Image(systemName: "chevron.right") }
+            }
+            
+            // Calendar Grid
+            VStack(spacing: 8) {
+                HStack(spacing: 8) {
+                    ForEach(0..<7, id: \.self) { i in
+                        Text(weekdayHeader(for: i))
+                            .font(.caption2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                
+                let days = daysInMonth
+                let rows = (days.count + 6) / 7
+                ForEach(0..<rows, id: \.self) { row in
+                    HStack(spacing: 8) {
+                        ForEach(0..<7, id: \.self) { col in
+                            let index = row * 7 + col
+                            if index < days.count, let date = days[index] {
+                                let d = Calendar.current.component(.day, from: date)
+                                let count = calendarCounts[currentYear]?[currentMonth]?[d] ?? 0
+                                
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(colorForCount(count))
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 42)
+                                    .overlay(
+                                        Text("\(d)")
+                                            .font(.caption)
+                                            .foregroundColor(count >= 3 ? .white : .primary)
+                                    )
+                            } else {
+                                Color.clear
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 42)
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Key
+            HStack(spacing: 4) {
+                Spacer()
+                Text("1")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .padding(.trailing, 4)
+                
+                ForEach(1...5, id: \.self) { i in
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(colorForCount(i))
+                        .frame(width: 16, height: 16)
+                    
+                    if i < 5 {
+                        Text("-")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                Text("5+")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .padding(.leading, 4)
+                Spacer()
+            }
+            .padding(.top, 8)
+        }
+        .padding(.vertical, 8)
     }
 }
 
