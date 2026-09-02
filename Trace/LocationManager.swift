@@ -32,13 +32,13 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
         manager.requestWhenInUseAuthorization()
     }
     
-    /// Single-shot location fetch — battery efficient.
+    /// Fast location fetch.
     func fetchLocation() {
         guard authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways else {
             return
         }
         isLoading = true
-        manager.requestLocation()
+        manager.startUpdatingLocation()
     }
     
     /// Reverse-geocode an arbitrary coordinate using MKReverseGeocodingRequest.
@@ -57,6 +57,7 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
     // MARK: - CLLocationManagerDelegate
     
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        manager.stopUpdatingLocation()
         guard let location = locations.first else {
             Task { @MainActor in self.isLoading = false }
             return

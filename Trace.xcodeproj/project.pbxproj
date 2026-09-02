@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		F91DDBAE3047F1110075B987 /* Products.storekit in Resources */ = {isa = PBXBuildFile; fileRef = F91DDBAD3047F1110075B987 /* Products.storekit */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		F9EAF2E92F2FF86600733E24 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -24,6 +28,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		F91DDBAD3047F1110075B987 /* Products.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Products.storekit; sourceTree = "<group>"; };
 		F9EAF2D92F2FF86400733E24 /* Trace.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Trace.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F9EAF2E82F2FF86600733E24 /* TraceTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TraceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F9EAF2F22F2FF86600733E24 /* TraceUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TraceUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -91,6 +96,7 @@
 				F9EAF2DB2F2FF86400733E24 /* Trace */,
 				F9EAF2EB2F2FF86600733E24 /* TraceTests */,
 				F9EAF2F52F2FF86600733E24 /* TraceUITests */,
+				F91DDBAD3047F1110075B987 /* Products.storekit */,
 				F9EAF2DA2F2FF86400733E24 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -225,6 +231,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F91DDBAE3047F1110075B987 /* Products.storekit in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

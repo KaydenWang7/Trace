@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Charts
+import MapKit
 
 // MARK: - Pure statistics computation
 
@@ -191,6 +192,9 @@ struct LogStatsView: View {
     @State private var selectedYear: Int = Calendar.current.component(.year, from: .now)
     @State private var stats: LogStatistics?
 
+    @State private var locationManager = LocationManager()
+    @AppStorage("useMetricSystem") private var useMetricSystem: Bool = true
+
     var body: some View {
         NavigationStack {
             Group {
@@ -215,6 +219,11 @@ struct LogStatsView: View {
             }
             .task {
                 stats = LogStatistics(entries: entries)
+                if locationManager.authorizationStatus == .notDetermined {
+                    locationManager.requestPermission()
+                } else {
+                    locationManager.fetchLocation()
+                }
             }
             .onChange(of: entries.count) {
                 stats = LogStatistics(entries: entries)
@@ -229,6 +238,7 @@ struct LogStatsView: View {
         List {
             overviewSection(s)
             timingSection(s)
+            locationSection(s)
             ratingsSection(s)
             frequencySection(s)
             
@@ -300,6 +310,105 @@ struct LogStatsView: View {
         }
     }
 
+    // MARK: Location
+
+    @ViewBuilder
+    private func locationSection(_ s: LogStatistics) -> some View {
+        Section {
+            if s.entriesWithLocations == 0 {
+                Text("Add location data to your entries to see your location statistics.")
+                    .foregroundColor(.secondary)
+                    .font(.subheadline)
+            } else if let currentLoc = locationManager.coordinate {
+                let clLoc = CLLocation(latitude: currentLoc.latitude, longitude: currentLoc.longitude)
+                let validEntries = entries.compactMap { e -> (Entry, CLLocation, CLLocationDistance)? in
+                    guard let lat = e.latitude, let lon = e.longitude else { return nil }
+                    let eloc = CLLocation(latitude: lat, longitude: lon)
+                    let dist = eloc.distance(from: clLoc)
+                    return (e, eloc, dist)
+                }
+                
+                if !validEntries.isEmpty {
+                    let maxE = validEntries.max(by: { $0.2 < $1.2 })!
+                    let minE = validEntries.min(by: { $0.2 < $1.2 })!
+                    let avgDist = validEntries.map(\.2).reduce(0, +) / Double(validEntries.count)
+                    
+                    statRow("Furthest", icon: "arrow.up.right", value: formatDistance(maxE.2))
+                    statRow("Closest", icon: "arrow.down.right", value: formatDistance(minE.2))
+                    statRow("Average", icon: "point.topleft.down.curvedto.point.bottomright.up", value: formatDistance(avgDist))
+                    
+                    // Static map showing lines
+                    Map(interactionModes: []) {
+                        Annotation("You", coordinate: currentLoc) {
+                            Image(systemName: "location.fill")
+                                .foregroundColor(.blue)
+                        }
+                        
+                        MapPolyline(coordinates: [currentLoc, maxE.1.coordinate])
+                            .stroke(.red, lineWidth: 2)
+                        Annotation("Furthest", coordinate: maxE.1.coordinate) {
+                            Image(systemName: "mappin")
+                                .foregroundColor(.red)
+                        }
+                        
+                        MapPolyline(coordinates: [currentLoc, minE.1.coordinate])
+                            .stroke(.green, lineWidth: 2)
+                        Annotation("Closest", coordinate: minE.1.coordinate) {
+                            Image(systemName: "mappin")
+                                .foregroundColor(.green)
+                        }
+                    }
+                    .frame(height: 200)
+                    .listRowInsets(EdgeInsets())
+                }
+            } else if locationManager.authorizationStatus == .notDetermined {
+                HStack {
+                    Text("Location permission required")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Button("Grant") {
+                        locationManager.requestPermission()
+                    }
+                }
+            } else if locationManager.authorizationStatus == .denied {
+                Text("Location permission denied. Please enable in Settings.")
+                    .foregroundColor(.secondary)
+            } else {
+                ProgressView("Locating...")
+            }
+        } header: {
+            Label("Distance from You", systemImage: "location")
+        } footer: {
+            if let currentLoc = locationManager.coordinate,
+               let maxE = entries.compactMap({ e -> (CLLocationDistance)? in
+                   guard let lat = e.latitude, let lon = e.longitude else { return nil }
+                   return CLLocation(latitude: lat, longitude: lon).distance(from: CLLocation(latitude: currentLoc.latitude, longitude: currentLoc.longitude))
+               }).max() {
+                let maxBoeings = maxE / 76.2
+                let maxBurjs = maxE / 828.0
+                Text("Furthest entry is \(Int(maxBoeings)) Boeing 747s or \(Int(maxBurjs)) Burj Khalifas away.")
+            }
+        }
+    }
+    
+    private func formatDistance(_ meters: Double) -> String {
+        if useMetricSystem {
+            if meters < 1000 {
+                return String(format: "%.0f m", meters)
+            } else {
+                return String(format: "%.1f km", meters / 1000)
+            }
+        } else {
+            let feet = meters * 3.28084
+            let miles = meters * 0.000621371
+            if miles < 0.1 {
+                return String(format: "%.0f ft", feet)
+            } else {
+                return String(format: "%.1f mi", miles)
+            }
+        }
+    }
+
     // MARK: Ratings
 
     @ViewBuilder
@@ -308,10 +417,10 @@ struct LogStatsView: View {
             Section {
                 statRow("Average", icon: "star.leadinghalf.filled", value: String(format: "%.1f", avg))
                 if let hi = s.highestRating {
-                    statRow("Highest", icon: "arrow.up", value: hi.formatted())
+                    statRow("Highest", icon: "arrow.up", value: String(format: "%.2f", hi))
                 }
                 if let lo = s.lowestRating {
-                    statRow("Lowest", icon: "arrow.down", value: lo.formatted())
+                    statRow("Lowest", icon: "arrow.down", value: String(format: "%.2f", lo))
                 }
 
                 // Distribution chart
@@ -519,6 +628,16 @@ struct CalendarHeatmapView: View {
     @State private var currentYear: Int = Calendar.current.component(.year, from: .now)
     @State private var currentMonth: Int = Calendar.current.component(.month, from: .now)
     
+    private var minAvailableDate: (year: Int, month: Int) {
+        if let minYear = calendarCounts.keys.min(),
+           let minMonth = calendarCounts[minYear]?.keys.min() {
+            return (minYear, minMonth)
+        }
+        let now = Date.now
+        let calendar = Calendar.current
+        return (calendar.component(.year, from: now), calendar.component(.month, from: now))
+    }
+    
     private var daysInMonth: [Date?] {
         let calendar = Calendar.current
         var comps = DateComponents(year: currentYear, month: currentMonth, day: 1)
@@ -570,14 +689,25 @@ struct CalendarHeatmapView: View {
                     } else {
                         currentMonth -= 1
                     }
-                }) { Image(systemName: "chevron.left") }
+                }) { Image(systemName: "chevron.left").contentShape(Rectangle()) }
+                .buttonStyle(.plain)
+                .disabled({
+                    let minDate = minAvailableDate
+                    return currentYear < minDate.year || (currentYear == minDate.year && currentMonth <= minDate.month)
+                }())
                 
                 Spacer()
                 
                 Menu {
+                    let actualMonth = Calendar.current.component(.month, from: .now)
+                    let actualYear = Calendar.current.component(.year, from: .now)
+                    let minDate = minAvailableDate
                     ForEach(1...12, id: \.self) { m in
-                        Button(DateFormatter().monthSymbols[m - 1]) {
-                            currentMonth = m
+                        if (currentYear < actualYear || (currentYear == actualYear && m <= actualMonth)) &&
+                           (currentYear > minDate.year || (currentYear == minDate.year && m >= minDate.month)) {
+                            Button(DateFormatter().monthSymbols[m - 1]) {
+                                currentMonth = m
+                            }
                         }
                     }
                 } label: {
@@ -587,13 +717,17 @@ struct CalendarHeatmapView: View {
                 }
                 
                 Menu {
-                    let minYear = calendarCounts.keys.min() ?? currentYear
-                    let maxYear = calendarCounts.keys.max() ?? currentYear
-                    let startYear = min(minYear, currentYear) - 2
-                    let endYear = max(maxYear, currentYear) + 2
-                    ForEach(startYear...endYear, id: \.self) { y in
+                    let actualYear = Calendar.current.component(.year, from: .now)
+                    let minDate = minAvailableDate
+                    ForEach(minDate.year...actualYear, id: \.self) { y in
                         Button(String(y)) {
                             currentYear = y
+                            let actualMonth = Calendar.current.component(.month, from: .now)
+                            if currentYear == actualYear && currentMonth > actualMonth {
+                                currentMonth = actualMonth
+                            } else if currentYear == minDate.year && currentMonth < minDate.month {
+                                currentMonth = minDate.month
+                            }
                         }
                     }
                 } label: {
@@ -611,7 +745,13 @@ struct CalendarHeatmapView: View {
                     } else {
                         currentMonth += 1
                     }
-                }) { Image(systemName: "chevron.right") }
+                }) { Image(systemName: "chevron.right").contentShape(Rectangle()) }
+                .buttonStyle(.plain)
+                .disabled({
+                    let actualYear = Calendar.current.component(.year, from: .now)
+                    let actualMonth = Calendar.current.component(.month, from: .now)
+                    return currentYear > actualYear || (currentYear == actualYear && currentMonth >= actualMonth)
+                }())
             }
             
             // Calendar Grid

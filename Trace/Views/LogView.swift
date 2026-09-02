@@ -24,8 +24,10 @@ struct LogView: View {
     @State private var editMode: EditMode = .inactive
     @State private var navigateToMap = false
     @State private var navigateToPhotos = false
+    @State private var showingPaywallSheet = false
     @AppStorage("showGradient") private var showGradient: Bool = true
     @AppStorage("recordLocation") private var recordLocation: Bool = true
+    @Environment(Store.self) private var store
 
     init(log: Log) {
         self.log = log
@@ -82,7 +84,13 @@ struct LogView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: { showingStatsSheet = true }) {
+                    Button(action: {
+                        if store.isPro {
+                            showingStatsSheet = true
+                        } else {
+                            showingPaywallSheet = true
+                        }
+                    }) {
                         Label("Statistics", systemImage: "chart.bar")
                     }
                 }
@@ -146,6 +154,9 @@ struct LogView: View {
             }
             .sheet(isPresented: $showingStatsSheet) {
                 LogStatsView(entries: entries)
+            }
+            .sheet(isPresented: $showingPaywallSheet) {
+                PaywallView()
             }
             .sheet(isPresented: $showingEditSheet) {
                 NavigationStack {

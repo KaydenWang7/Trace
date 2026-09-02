@@ -157,6 +157,7 @@ struct EntryForm: View {
                             ))) {
                                 Marker(locationName ?? "Location", coordinate: coordinate)
                             }
+                            .id("\(lat),\(lon)")
                             .frame(height: 180)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                             .allowsHitTesting(false)

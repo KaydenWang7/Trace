@@ -68,6 +68,7 @@ struct EntryView: View {
                         ))) {
                             Marker(entry.locationName ?? "Location", coordinate: coordinate)
                         }
+                        .id("\(lat),\(lon)")
                         .frame(height: 180)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .allowsHitTesting(false)

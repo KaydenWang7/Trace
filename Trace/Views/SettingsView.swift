@@ -11,6 +11,9 @@ import SwiftData
 struct SettingsView: View {
     @AppStorage("showGradient") private var showGradient: Bool = true
     @AppStorage("recordLocation") private var recordLocation: Bool = true
+    @AppStorage("useMetricSystem") private var useMetricSystem: Bool = true
+    @Environment(Store.self) private var store
+    @State private var showingPaywallSheet = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     
@@ -22,9 +25,35 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section("Trace Pro") {
+                    if store.isPro {
+                        HStack {
+                            Image(systemName: "star.circle.fill")
+                                .foregroundStyle(.tint)
+                            Text("You are a Trace Pro member")
+                        }
+                    } else {
+                        Button(action: {
+                            showingPaywallSheet = true
+                        }) {
+                            HStack {
+                                Image(systemName: "star.circle.fill")
+                                Text("Unlock Trace Pro")
+                            }
+                            .foregroundStyle(.tint)
+                        }
+                    }
+                }
+                
                 Section("Appearance") {
                     Toggle(isOn: $showGradient) {
                         Text("Show rating gradients")
+                    }
+                }
+                
+                Section("Units") {
+                    Toggle(isOn: $useMetricSystem) {
+                        Text("Use Metric System")
                     }
                 }
                 
@@ -106,6 +135,9 @@ struct SettingsView: View {
             }
             .fullScreenCover(isPresented: $showingOnboarding) {
                 OnboardingView()
+            }
+            .sheet(isPresented: $showingPaywallSheet) {
+                PaywallView()
             }
         }
     }

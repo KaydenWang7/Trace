@@ -11,6 +11,7 @@ import SwiftData
 @main
 struct TraceApp: App {
     @State private var errorHandler = ErrorHandler()
+    @State private var store = Store()
     
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
@@ -30,6 +31,7 @@ struct TraceApp: App {
         WindowGroup {
             ContentView()
                 .environment(errorHandler)
+                .environment(store)
                 .alert(
                     "Something went wrong",
                     isPresented: $errorHandler.showError
