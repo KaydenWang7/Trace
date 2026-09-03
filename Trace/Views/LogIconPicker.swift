@@ -1,4 +1,4 @@
-//
+    //
 //  LogIconPicker.swift
 //  Trace
 //
@@ -24,6 +24,9 @@ enum LogTheme {
     
     /// Palette of named colours matching Apple's system palette.
     static let colors: [(name: String, color: Color)] = [
+        ("mint", .accentColor),
+        ("peach", Color("TracePeach")),
+        ("lavender", Color("TraceLavender")),
         ("blue", .blue),
         ("red", .red),
         ("green", .green),
@@ -34,13 +37,12 @@ enum LogTheme {
         ("teal", .teal),
         ("indigo", .indigo),
         ("brown", .brown),
-        ("mint", .mint),
         ("cyan", .cyan)
     ]
     
     /// Resolves a stored colour name to a SwiftUI `Color`.
     static func color(for name: String) -> Color {
-        colors.first(where: { $0.name == name })?.color ?? .blue
+        colors.first(where: { $0.name == name })?.color ?? .accentColor
     }
     
     /// Maps a 0–10 rating to a hue on the red → yellow → green spectrum.

@@ -83,6 +83,36 @@ struct SettingsView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    
+                    Link(destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!) {
+                        HStack {
+                            Image(systemName: "doc.text")
+                            Text("Terms of Use")
+                            Spacer()
+                            Image(systemName: "arrow.up.right.square")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    
+                    Link(destination: URL(string: "mailto:theflightforge@gmail.com")!) {
+                        HStack {
+                            Image(systemName: "envelope")
+                            Text("Contact Us")
+                            Spacer()
+                            Image(systemName: "arrow.up.right.square")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    
+                    Link(destination: URL(string: "https://forms.gle/2HtzSU4CHhPKdrEC8")!) {
+                        HStack {
+                            Image(systemName: "ladybug")
+                            Text("Submit a Bug or Suggestion")
+                            Spacer()
+                            Image(systemName: "arrow.up.right.square")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
                 
                 Section {
@@ -99,6 +129,12 @@ struct SettingsView: View {
                 } footer: {
                     Text("This will permanently delete all logs and entries. This action cannot be undone.")
                 }
+                
+                Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")")
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .listRowBackground(Color.clear)
+                    .foregroundStyle(.secondary)
+                    .font(.footnote)
             }
             .navigationTitle("Settings")
             .toolbar {

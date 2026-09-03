@@ -18,7 +18,7 @@ struct LogView: View {
     @State private var showingStatsSheet = false
     @State private var editedTitle: String = ""
     @State private var editedIcon: String = "book.closed"
-    @State private var editedColor: String = "blue"
+    @State private var editedColor: String = "mint"
     @State private var selectedEntries = Set<PersistentIdentifier>()
     @State private var showingDeleteConfirmation = false
     @State private var editMode: EditMode = .inactive

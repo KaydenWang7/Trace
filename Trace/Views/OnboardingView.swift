@@ -159,7 +159,7 @@ struct LogMockup: View {
                     .font(.body)
                     .foregroundStyle(.white)
                     .frame(width: 40, height: 40)
-                    .background(Color.blue, in: RoundedRectangle(cornerRadius: 8))
+                    .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 8))
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Taipei Trip")
@@ -212,7 +212,7 @@ struct SwipeGestureMockup: View {
                 HStack(spacing: 0) {
                     ZStack(alignment: .leading) {
                         Rectangle()
-                            .fill(Color.blue)
+                            .fill(Color.accentColor)
                             .frame(width: 120, height: 72)
                         
                         VStack(spacing: 2) {
@@ -235,7 +235,7 @@ struct SwipeGestureMockup: View {
                         .font(.body)
                         .foregroundStyle(.white)
                         .frame(width: 40, height: 40)
-                        .background(Color.orange, in: RoundedRectangle(cornerRadius: 8))
+                        .background(Color("TracePeach"), in: RoundedRectangle(cornerRadius: 8))
                     
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Coffee Shops")

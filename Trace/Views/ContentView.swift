@@ -7,11 +7,12 @@
 
 import SwiftUI
 import SwiftData
+import Combine
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(ErrorHandler.self) private var errorHandler
-    @Query(sort: \Log.createdAt, order: .reverse) private var logs: [Log]
+    @Query(sort: [SortDescriptor(\Log.order, order: .forward), SortDescriptor(\Log.createdAt, order: .reverse)]) private var logs: [Log]
     
     @AppStorage("recordLocation") private var recordLocation: Bool = true
     
@@ -24,6 +25,9 @@ struct ContentView: View {
     
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding: Bool = false
     @State private var showingOnboarding = false
+    @State private var currentTime = Date.now
+    
+    let timer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
     
     var body: some View {
         NavigationStack {
@@ -41,7 +45,7 @@ struct ContentView: View {
                                 
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(log.title)
-                                    Text(timeSinceLastEntry(log: log))
+                                    Text(timeSinceLastEntry(log: log, now: currentTime))
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
@@ -54,9 +58,10 @@ struct ContentView: View {
                             } label: {
                                 Label("Add", systemImage: "plus.circle.fill")
                             }
-                            .tint(.blue)
+                            .tint(.accentColor)
                         }
                     }
+                    .onMove(perform: moveLogs)
                 }
                 .navigationTitle("All Logs")
                 .environment(\.editMode, $editMode)
@@ -156,7 +161,11 @@ struct ContentView: View {
                 LogView(log: log)
             }
         }
+        .onReceive(timer) { _ in
+            currentTime = Date.now
+        }
         .onAppear {
+            currentTime = Date.now
             if !hasSeenOnboarding {
                 showingOnboarding = true
             }
@@ -181,17 +190,32 @@ struct ContentView: View {
         }
     }
     
+    private func moveLogs(from source: IndexSet, to destination: Int) {
+        var revisedItems = logs
+        revisedItems.move(fromOffsets: source, toOffset: destination)
+        
+        for (index, log) in revisedItems.enumerated() {
+            log.order = index
+        }
+        
+        do {
+            try modelContext.save()
+        } catch {
+            errorHandler.handle(error)
+        }
+    }
+    
     /// Returns a two-unit relative time string like "3h 42m ago" from the
     /// most recent entry in the log's entries array.
-    private func timeSinceLastEntry(log: Log) -> String {
+    private func timeSinceLastEntry(log: Log, now: Date) -> String {
         guard let latest = (log.entries ?? []).max(by: { $0.timestamp < $1.timestamp }) else {
             return "No entries"
         }
-        let interval = Date.now.timeIntervalSince(latest.timestamp)
+        let interval = now.timeIntervalSince(latest.timestamp)
         guard interval >= 0 else { return "Just now" }
         
         let calendar = Calendar.current
-        let components = calendar.dateComponents([.month, .day, .hour, .minute, .second], from: latest.timestamp, to: .now)
+        let components = calendar.dateComponents([.month, .day, .hour, .minute, .second], from: latest.timestamp, to: now)
         let months = components.month ?? 0
         let days = components.day ?? 0
         let hours = components.hour ?? 0

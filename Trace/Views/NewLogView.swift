@@ -11,7 +11,7 @@ struct NewLogView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var title: String = ""
     @State private var icon: String = "book.closed"
-    @State private var iconColor: String = "blue"
+    @State private var iconColor: String = "mint"
     @FocusState private var isTitleFocused: Bool
     var onSave: (_ title: String, _ icon: String, _ iconColor: String) -> Void
 
