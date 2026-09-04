@@ -37,7 +37,16 @@ enum LogTheme {
         ("teal", .teal),
         ("indigo", .indigo),
         ("brown", .brown),
-        ("cyan", .cyan)
+        ("cyan", .cyan),
+        ("gray", .gray),
+        ("coral", Color(red: 1.0, green: 0.5, blue: 0.31)),
+        ("gold", Color(red: 1.0, green: 0.84, blue: 0.0)),
+        ("emerald", Color(red: 0.31, green: 0.78, blue: 0.47)),
+        ("sky", Color(red: 0.53, green: 0.81, blue: 0.92)),
+        ("navy", Color(red: 0.0, green: 0.0, blue: 0.5)),
+        ("plum", Color(red: 0.87, green: 0.63, blue: 0.87)),
+        ("rose", Color(red: 1.0, green: 0.0, blue: 0.5)),
+        ("slate", Color(red: 0.44, green: 0.5, blue: 0.56))
     ]
     
     /// Resolves a stored colour name to a SwiftUI `Color`.

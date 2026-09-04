@@ -210,7 +210,7 @@ struct LogView: View {
                         .fontWeight(.semibold)
                         .frame(width: 56, height: 56)
                 }
-                .glassEffect(.regular, in: .circle)
+                .applyGlassEffect()
                 .shadow(radius: 4, y: 2)
                 .padding(.trailing, 20)
                 .padding(.bottom, 20)

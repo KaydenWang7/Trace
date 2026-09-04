@@ -41,16 +41,27 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
         manager.startUpdatingLocation()
     }
     
-    /// Reverse-geocode an arbitrary coordinate using MKReverseGeocodingRequest.
+    /// Reverse-geocode an arbitrary coordinate.
     nonisolated static func reverseGeocode(_ coordinate: CLLocationCoordinate2D) async -> String? {
         let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-        guard let request = MKReverseGeocodingRequest(location: location) else { return nil }
-        do {
-            let mapItems = try await request.mapItems
-            return mapItems.first?.name
-        } catch {
-            print("Reverse geocoding failed: \(error.localizedDescription)")
-            return nil
+        if #available(iOS 26.0, *) {
+            guard let request = MKReverseGeocodingRequest(location: location) else { return nil }
+            do {
+                let mapItems = try await request.mapItems
+                return mapItems.first?.name
+            } catch {
+                print("Reverse geocoding failed: \(error.localizedDescription)")
+                return nil
+            }
+        } else {
+            let geocoder = CLGeocoder()
+            do {
+                let placemarks = try await geocoder.reverseGeocodeLocation(location)
+                return placemarks.first?.name
+            } catch {
+                print("Reverse geocoding failed: \(error.localizedDescription)")
+                return nil
+            }
         }
     }
     
@@ -66,11 +77,23 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
         Task { @MainActor in
             self.coordinate = location.coordinate
             
-            if let request = MKReverseGeocodingRequest(location: location) {
+            if #available(iOS 26.0, *) {
+                if let request = MKReverseGeocodingRequest(location: location) {
+                    do {
+                        let mapItems = try await request.mapItems
+                        if let mapItem = mapItems.first {
+                            self.locationName = mapItem.name
+                        }
+                    } catch {
+                        print("Reverse geocoding failed: \(error.localizedDescription)")
+                    }
+                }
+            } else {
+                let geocoder = CLGeocoder()
                 do {
-                    let mapItems = try await request.mapItems
-                    if let mapItem = mapItems.first {
-                        self.locationName = mapItem.name
+                    let placemarks = try await geocoder.reverseGeocodeLocation(location)
+                    if let placemark = placemarks.first {
+                        self.locationName = placemark.name
                     }
                 } catch {
                     print("Reverse geocoding failed: \(error.localizedDescription)")

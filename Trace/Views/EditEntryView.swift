@@ -65,7 +65,7 @@ struct EditEntryView: View {
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done", systemImage: "checkmark", role: .confirm) {
+                    Button("Done", systemImage: "checkmark") {
                         if hasChanges {
                             showSaveDialog = true
                         } else {
@@ -91,7 +91,7 @@ struct EditEntryView: View {
                 isPresented: $showSaveDialog,
                 titleVisibility: .visible
             ) {
-                Button("Save", role: .confirm) {
+                Button("Save") {
                     entry.timestamp = draftTimestamp
                     let trimmedTitle = draftTitle.trimmingCharacters(in: .whitespacesAndNewlines)
                     entry.title = trimmedTitle.isEmpty ? "Untitled" : trimmedTitle
